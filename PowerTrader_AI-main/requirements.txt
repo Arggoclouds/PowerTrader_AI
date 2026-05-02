@@ -1,0 +1,6 @@
+requests
+psutil
+matplotlib
+colorama
+kucoin-python
+coinbase
