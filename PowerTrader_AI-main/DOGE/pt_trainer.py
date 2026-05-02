@@ -32,13 +32,9 @@ class CoinbaseMarket:
 			'1week': 604800,
 		}
 		granularity = tf_map.get(timeframe, 3600)
-		
-		# Coinbase product ID: BTC-USD, ETH-USD, etc.
 		product_id = f"{coin_choice}-USD"
-		
 		candles = []
 		try:
-			# Coinbase returns candles in reverse chronological order
 			url = f"{self.base_url}/products/{product_id}/candles"
 			params = {'granularity': granularity}
 			if isinstance(startAt, (int, float)) and isinstance(endAt, (int, float)):
@@ -71,18 +67,26 @@ class CoinbaseMarket:
 				resp.raise_for_status()
 				data = resp.json()
 				candles.extend(data)
-			# Coinbase returns [time, low, high, open, close, volume]
-			# Convert to KuCoin format: [time, open, close, high, low, volume]
 			converted = []
 			for candle in candles:
 				if len(candle) >= 6:
-					time, low, high, open_p, close_p, volume = candle[0], candle[1], candle[2], candle[3], candle[4], candle[5]
-					converted.append([time, open_p, close_p, high, low, volume])
+					timestamp, low, high, open_p, close_p, volume = candle[0], candle[1], candle[2], candle[3], candle[4], candle[5]
+					converted.append([timestamp, open_p, close_p, high, low, volume])
 			return converted
 		except Exception as e:
 			print(f"Error fetching candles for {product_id}: {e}")
 			return []
-	
+	def get_server_time(self):
+		try:
+			resp = self.session.get(f"{self.base_url}/time", timeout=10)
+			resp.raise_for_status()
+			data = resp.json()
+			if isinstance(data, dict) and 'epoch' in data:
+				return int(float(data['epoch']))
+		except Exception:
+			pass
+		return int(time.time())
+
 	def get_ticker(self, coin_choice):
 		"""
 		Fetch current ticker for a coin.
@@ -471,7 +475,7 @@ while True:
 	else:
 		timeframe = tf_list[2]#droplet setting (create list for all timeframes)
 		timeframe_minutes = minutes_list[2]#droplet setting (create list for all timeframe_minutes)
-	start_time = int(time.time())
+	start_time = market.get_server_time()
 	restarting = 'no'
 	success_rate = 85
 	volume_success_rate = 60
@@ -493,7 +497,7 @@ while True:
 	history_list2 = []
 	len_avg = []
 	list_len = 0
-	start_time = int(time.time())
+	start_time = market.get_server_time()
 	start_time_yes = start_time
 	if 'n' in restart_processing.lower():
 		try:
