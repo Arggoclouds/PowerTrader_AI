@@ -42,9 +42,15 @@ class CoinbaseMarket:
 			url = f"{self.base_url}/products/{product_id}/candles"
 			params = {'granularity': granularity}
 			if isinstance(startAt, (int, float)) and isinstance(endAt, (int, float)):
+				granularity = int(granularity)
+				startAt = int(startAt) - (int(startAt) % granularity)
+				endAt = int(endAt) - (int(endAt) % granularity)
+				if endAt <= startAt:
+					return []
 				chunk_end = endAt
 				while chunk_end > startAt:
 					chunk_start = max(startAt, chunk_end - (granularity * 300))
+					chunk_start = chunk_start - (chunk_start % granularity)
 					params['start'] = datetime.utcfromtimestamp(chunk_start).strftime("%Y-%m-%dT%H:%M:%SZ")
 					params['end'] = datetime.utcfromtimestamp(chunk_end).strftime("%Y-%m-%dT%H:%M:%SZ")
 					resp = self.session.get(url, params=params, timeout=10)
@@ -64,18 +70,18 @@ class CoinbaseMarket:
 				resp = self.session.get(url, params=params, timeout=10)
 				resp.raise_for_status()
 				data = resp.json()
-			
+				candles.extend(data)
 			# Coinbase returns [time, low, high, open, close, volume]
 			# Convert to KuCoin format: [time, open, close, high, low, volume]
-			for candle in data:
+			converted = []
+			for candle in candles:
 				if len(candle) >= 6:
 					time, low, high, open_p, close_p, volume = candle[0], candle[1], candle[2], candle[3], candle[4], candle[5]
-					candles.append([time, open_p, close_p, high, low, volume])
+					converted.append([time, open_p, close_p, high, low, volume])
+			return converted
 		except Exception as e:
 			print(f"Error fetching candles for {product_id}: {e}")
 			return []
-		
-		return candles
 	
 	def get_ticker(self, coin_choice):
 		"""
@@ -509,11 +515,13 @@ while True:
 			PrintException()
 			time.sleep(3.5)
 			continue
+		index = 0
 		if not history:
-			print('gathering history: no candles returned')
+			print(f"No candle history returned for {coin_choice} {timeframe} {end_time} to {start_time}")
+			start_time = end_time
+			end_time = int(start_time-((1500*timeframe_minutes)*60))
 			continue
-		for candle in history:
-			history_list.append(candle)
+		history_list.extend(history)
 		perc_comp = format((len(history_list)/how_far_to_look_back)*100,'.2f')
 		print('gathering history')
 		current_change = len(history_list)-list_len	

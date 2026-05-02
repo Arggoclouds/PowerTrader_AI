@@ -510,7 +510,7 @@ def init_coin(sym: str):
 		history_list = []
 		while True:
 			try:
-				history = str(market.get_kline(coin, tf_choices[ind])).replace(']]', '], ').replace('[[', '[')
+				history = market.get_kline(coin, tf_choices[ind])
 				break
 			except Exception as e:
 				time.sleep(3.5)
@@ -520,11 +520,11 @@ def init_coin(sym: str):
 					PrintException()
 				continue
 
-		history_list = history.split("], [")
+		history_list = history
 		ind += 1
 		try:
-			working_minute = str(history_list[1]).replace('"', '').replace("'", "").split(", ")
-			the_time = working_minute[0].replace('[', '')
+			working_minute = history_list[1]
+			the_time = working_minute[0]
 		except Exception:
 			the_time = 0.0
 
@@ -666,7 +666,7 @@ def step_coin(sym: str):
 		history_list = []
 		while True:
 			try:
-				history = str(market.get_kline(coin, tf_choices[tf_choice_index])).replace(']]', '], ').replace('[[', '[')
+				history = market.get_kline(coin, tf_choices[tf_choice_index])
 				break
 			except Exception as e:
 				time.sleep(3.5)
@@ -675,13 +675,13 @@ def step_coin(sym: str):
 				else:
 					pass
 				continue
-		history_list = history.split("], [")
+		history_list = history
 		# KuCoin can occasionally return an empty/short kline response.
 		# Guard against history_list[1] raising IndexError.
 		if len(history_list) < 2:
 			time.sleep(0.2)
 			continue
-		working_minute = str(history_list[1]).replace('"', '').replace("'", "").split(", ")
+		working_minute = history_list[1]
 		try:
 			openPrice = float(working_minute[1])
 			closePrice = float(working_minute[2])
@@ -894,7 +894,7 @@ def step_coin(sym: str):
 			while True:
 
 				try:
-					history = str(market.get_kline(coin, tf_choices[inder])).replace(']]', '], ').replace('[[', '[')
+					history = market.get_kline(coin, tf_choices[inder])
 					break
 				except Exception as e:
 					time.sleep(3.5)
@@ -904,10 +904,10 @@ def step_coin(sym: str):
 						PrintException()
 					continue
 
-			history_list = history.split("], [")
+			history_list = history
 			try:
-				working_minute = str(history_list[1]).replace('"', '').replace("'", "").split(", ")
-				the_time = working_minute[0].replace('[', '')
+				working_minute = history_list[1]
+				the_time = working_minute[0]
 			except Exception:
 				the_time = 0.0
 
@@ -1152,7 +1152,7 @@ def step_coin(sym: str):
 		while this_index_now < len(tf_update):
 			while True:
 				try:
-					history = str(market.get_kline(coin, tf_choices[this_index_now])).replace(']]', '], ').replace('[[', '[')
+					history = market.get_kline(coin, tf_choices[this_index_now])
 					break
 				except Exception as e:
 					time.sleep(3.5)
@@ -1162,10 +1162,10 @@ def step_coin(sym: str):
 						PrintException()
 					continue
 
-			history_list = history.split("], [")
+			history_list = history
 			try:
-				working_minute = str(history_list[1]).replace('"', '').replace("'", "").split(", ")
-				the_time = working_minute[0].replace('[', '')
+				working_minute = history_list[1]
+				the_time = working_minute[0]
 			except Exception:
 				the_time = 0.0
 
