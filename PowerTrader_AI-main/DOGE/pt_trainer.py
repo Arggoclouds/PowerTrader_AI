@@ -1,5 +1,99 @@
-from kucoin.client import Market
-market = Market(url='https://api.kucoin.com')
+try:
+    import requests
+except ModuleNotFoundError as e:
+    print("Missing Python dependency: requests. Install it with 'pip install -r requirements.txt'.")
+    raise
+
+class CoinbaseMarket:
+	"""Coinbase market data fetcher to replace KuCoin Market."""
+	
+	def __init__(self, url='https://api.exchange.coinbase.com'):
+		self.base_url = url
+		self.session = requests.Session()
+	
+	def get_kline(self, coin_choice, timeframe, startAt=None, endAt=None):
+		"""
+		Fetch historical candles from Coinbase.
+		Returns list of [timestamp, open, close, high, low, volume] similar to KuCoin format.
+		coin_choice: e.g., 'BTC', 'ETH'
+		timeframe: e.g., '1hour', '1day'
+		"""
+		# Map timeframe to Coinbase granularity in seconds
+		tf_map = {
+			'1min': 60,
+			'5min': 300,
+			'15min': 900,
+			'1hour': 3600,
+			'2hour': 7200,
+			'4hour': 14400,
+			'8hour': 28800,
+			'12hour': 43200,
+			'1day': 86400,
+			'1week': 604800,
+		}
+		granularity = tf_map.get(timeframe, 3600)
+		
+		# Coinbase product ID: BTC-USD, ETH-USD, etc.
+		product_id = f"{coin_choice}-USD"
+		
+		candles = []
+		try:
+			# Coinbase returns candles in reverse chronological order
+			url = f"{self.base_url}/products/{product_id}/candles"
+			params = {'granularity': granularity}
+			if isinstance(startAt, (int, float)) and isinstance(endAt, (int, float)):
+				chunk_end = endAt
+				while chunk_end > startAt:
+					chunk_start = max(startAt, chunk_end - (granularity * 300))
+					params['start'] = datetime.utcfromtimestamp(chunk_start).strftime("%Y-%m-%dT%H:%M:%SZ")
+					params['end'] = datetime.utcfromtimestamp(chunk_end).strftime("%Y-%m-%dT%H:%M:%SZ")
+					resp = self.session.get(url, params=params, timeout=10)
+					resp.raise_for_status()
+					data = resp.json()
+					if not data:
+						break
+					candles.extend(data)
+					if len(data) < 300 or chunk_start <= startAt:
+						break
+					chunk_end = chunk_start
+			else:
+				if startAt is not None:
+					params['start'] = str(startAt)
+				if endAt is not None:
+					params['end'] = str(endAt)
+				resp = self.session.get(url, params=params, timeout=10)
+				resp.raise_for_status()
+				data = resp.json()
+			
+			# Coinbase returns [time, low, high, open, close, volume]
+			# Convert to KuCoin format: [time, open, close, high, low, volume]
+			for candle in data:
+				if len(candle) >= 6:
+					time, low, high, open_p, close_p, volume = candle[0], candle[1], candle[2], candle[3], candle[4], candle[5]
+					candles.append([time, open_p, close_p, high, low, volume])
+		except Exception as e:
+			print(f"Error fetching candles for {product_id}: {e}")
+			return []
+		
+		return candles
+	
+	def get_ticker(self, coin_choice):
+		"""
+		Fetch current ticker for a coin.
+		Returns dict-like response containing price info.
+		"""
+		product_id = f"{coin_choice}-USD"
+		try:
+			url = f"{self.base_url}/products/{product_id}/ticker"
+			resp = self.session.get(url, timeout=10)
+			resp.raise_for_status()
+			data = resp.json()
+			return data
+		except Exception as e:
+			print(f"Error fetching ticker for {product_id}: {e}")
+			return {}
+
+market = CoinbaseMarket()
 import time
 """
 <------------
@@ -222,7 +316,7 @@ def PrintException():
 how_far_to_look_back = 100000
 number_of_candles = [2]
 number_of_candles_index = 0
-def restart_program():
+def restarted_yet():
 	"""Restarts the current program, with file objects and descriptors cleanup"""
 
 	try:
@@ -252,25 +346,25 @@ try:
 except Exception:
 	_arg_coin = "BTC"
 
-coin_choice = _arg_coin + '-USDT'
+coin_choice = _arg_coin
 
 restart_processing = "yes"
 
 # GUI reads this status file to know if this coin is TRAINING or FINISHED
 _trainer_started_at = int(time.time())
 try:
-	with open("trainer_status.json", "w", encoding="utf-8") as f:
-		json.dump(
-			{
-				"coin": _arg_coin,
-				"state": "TRAINING",
-				"started_at": _trainer_started_at,
-				"timestamp": _trainer_started_at,
-			},
-			f,
-		)
+    with open("trainer_status.json", "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "coin": _arg_coin,
+                "state": "TRAINING",
+                "started_at": _trainer_started_at,
+                "timestamp": _trainer_started_at,
+            },
+            f,
+        )
 except Exception:
-	pass
+    pass
 
 
 the_big_index = 0
@@ -410,19 +504,16 @@ while True:
 	while True:
 		time.sleep(.5)
 		try:
-			history = str(market.get_kline(coin_choice,timeframe,startAt=end_time,endAt=start_time)).replace(']]','], ').replace('[[','[').split('], [')
+			history = market.get_kline(coin_choice, timeframe, startAt=end_time, endAt=start_time)
 		except Exception as e:
 			PrintException()
 			time.sleep(3.5)
 			continue
-		index = 0
-		while True:
-			history_list.append(history[index])
-			index += 1
-			if index >= len(history):
-				break
-			else:
-				continue
+		if not history:
+			print('gathering history: no candles returned')
+			continue
+		for candle in history:
+			history_list.append(candle)
 		perc_comp = format((len(history_list)/how_far_to_look_back)*100,'.2f')
 		print('gathering history')
 		current_change = len(history_list)-list_len	
@@ -464,18 +555,16 @@ while True:
 	minutes_passed = 0
 	try:
 		while True:
-			working_minute = str(history_list[index]).replace('"','').replace("'","").split(", ")
+			candle = history_list[index]
 			try:
 				if index == 1:
-					current_tf_time = float(working_minute[0].replace('[',''))
+					current_tf_time = float(candle[0])
 					last_tf_time = current_tf_time
-				else:
-					pass
-				candle_time = float(working_minute[0].replace('[',''))
-				openPrice = float(working_minute[1])                
-				closePrice = float(working_minute[2])
-				highPrice = float(working_minute[3])
-				lowPrice = float(working_minute[4])
+				candle_time = float(candle[0])
+				openPrice = float(candle[1])
+				closePrice = float(candle[2])
+				highPrice = float(candle[3])
+				lowPrice = float(candle[4])
 				open_price_list.append(openPrice)
 				price_list.append(closePrice)
 				high_price_list.append(highPrice)
