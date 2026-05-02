@@ -38,6 +38,7 @@ class CoinbaseMarket:
 			fallback = fallback_granularity.get(granularity, 3600)
 			print(f"Unsupported Coinbase granularity {granularity} for {timeframe}, falling back to {fallback}")
 			granularity = fallback
+			print(f"Coinbase request granularity set to {granularity} for {timeframe}")
 		product_id = f"{coin_choice}-USD"
 		candles = []
 		try:
