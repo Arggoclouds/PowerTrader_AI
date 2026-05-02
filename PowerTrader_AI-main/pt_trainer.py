@@ -32,6 +32,12 @@ class CoinbaseMarket:
 			'1week': 604800,
 		}
 		granularity = tf_map.get(timeframe, 3600)
+		supported_granularities = {60, 300, 900, 3600, 21600, 86400}
+		fallback_granularity = {7200: 3600, 14400: 3600, 28800: 21600, 43200: 21600, 604800: 86400}
+		if granularity not in supported_granularities:
+			fallback = fallback_granularity.get(granularity, 3600)
+			print(f"Unsupported Coinbase granularity {granularity} for {timeframe}, falling back to {fallback}")
+			granularity = fallback
 		product_id = f"{coin_choice}-USD"
 		candles = []
 		try:
