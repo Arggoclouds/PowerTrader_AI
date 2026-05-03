@@ -1760,6 +1760,11 @@ class PowerTraderHub(tk.Tk):
         self.pnl_ledger_path = os.path.join(self.hub_dir, "pnl_ledger.json")
         self.account_value_history_path = os.path.join(self.hub_dir, "account_value_history.jsonl")
 
+        try:
+            open(self.trade_history_path, "a", encoding="utf-8").close()
+        except Exception:
+            pass
+
         # file written by pt_thinker.py (runner readiness gate used for Start All)
         self.runner_ready_path = os.path.join(self.hub_dir, "runner_ready.json")
 
