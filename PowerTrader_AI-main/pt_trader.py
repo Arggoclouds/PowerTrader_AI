@@ -22,6 +22,10 @@ import traceback
 # -----------------------------
 HUB_DATA_DIR = os.environ.get("POWERTRADER_HUB_DIR", os.path.join(os.path.dirname(__file__), "hub_data"))
 os.makedirs(HUB_DATA_DIR, exist_ok=True)
+try:
+    open(os.path.join(HUB_DATA_DIR, "trade_history.jsonl"), "a", encoding="utf-8").close()
+except Exception:
+    pass
 
 TRADER_STATUS_PATH = os.path.join(HUB_DATA_DIR, "trader_status.json")
 TRADE_HISTORY_PATH = os.path.join(HUB_DATA_DIR, "trade_history.jsonl")
@@ -2823,8 +2827,8 @@ class CryptoAPITrading:
         # Use the (possibly refreshed) stored cost_basis
         cost_basis = self.cost_basis
 
-        # Fetch current prices
-        symbols = [holding["asset_code"] + "-USD" for holding in holdings.get("results", [])]
+        holdings_results = holdings.get("results") or [] if isinstance(holdings, dict) else []
+        symbols = [f"{holding.get('asset_code','').strip().upper()}-USD" for holding in holdings_results if isinstance(holding, dict) and holding.get("asset_code")]
 
         # ALSO fetch prices for tracked coins even if not currently held (so GUI can show bid/ask lines)
         for s in crypto_symbols:

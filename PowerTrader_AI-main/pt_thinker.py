@@ -2,9 +2,18 @@ import os
 import time
 import random
 import requests
+import sys
+import types
+try:
+    import pkg_resources
+except ModuleNotFoundError:
+    pkg_resources = types.ModuleType("pkg_resources")
+    class DistributionNotFound(Exception):
+        pass
+    pkg_resources.DistributionNotFound = DistributionNotFound
+    sys.modules["pkg_resources"] = pkg_resources
 from kucoin.client import Market
 market = Market(url='https://api.kucoin.com')
-import sys
 import datetime
 import traceback
 import linecache
